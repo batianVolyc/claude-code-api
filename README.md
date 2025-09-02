@@ -52,10 +52,12 @@ make start
 
 ## Supported Models
 
-- `claude-opus-4-20250514` - Claude Opus 4 (Most powerful)
-- `claude-sonnet-4-20250514` - Claude Sonnet 4 (Latest Sonnet)
-- `claude-3-7-sonnet-20250219` - Claude Sonnet 3.7 (Advanced)
-- `claude-3-5-haiku-20241022` - Claude Haiku 3.5 (Fast & cost-effective)
+- `claude-opus-4-1-20250805` - Claude Opus 4.1 (Latest)
+- `claude-opus-4-20250514` - Claude Opus 4
+- `claude-sonnet-4-20250514` - Claude Sonnet 4
+- `claude-3-7-sonnet-20250219` - Claude Sonnet 3.7
+- `claude-3-5-sonnet-20241022` - Claude Sonnet 3.5 (Latest)
+- `claude-3-5-haiku-20241022` - Claude Haiku 3.5
 
 ## Quick Start
 
