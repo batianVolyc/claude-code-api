@@ -52,9 +52,11 @@ make start
 
 ## Supported Models
 
-- `claude-opus-4-20250514` - Claude Opus 4 (Most powerful)
-- `claude-sonnet-4-20250514` - Claude Sonnet 4 (Latest Sonnet)
-- `claude-3-7-sonnet-20250219` - Claude Sonnet 3.7 (Advanced)
+- `claude-opus-4-1-20250805` - Claude Opus 4.1 (Latest, most powerful)
+- `claude-opus-4-20250514` - Claude Opus 4
+- `claude-sonnet-4-20250514` - Claude Sonnet 4
+- `claude-3-7-sonnet-20250219` - Claude Sonnet 3.7
+- `claude-3-5-sonnet-20241022` - Claude Sonnet 3.5 (Latest Sonnet)
 - `claude-3-5-haiku-20241022` - Claude Haiku 3.5 (Fast & cost-effective)
 
 ## Quick Start
@@ -70,6 +72,10 @@ make start
 # Clone and setup
 git clone https://github.com/codingworkflow/claude-code-api
 cd claude-code-api
+
+# Copy environment example and configure
+cp .env.example .env
+# Edit .env to configure your settings (especially API keys for production)
 
 # Install dependencies
 make install
@@ -126,6 +132,53 @@ make check-claude   # Check if Claude Code CLI is available
 ```
 
 ## API Usage
+
+### Authentication
+
+By default, the API runs without authentication for development. **For production use, enable API key authentication:**
+
+1. **Configure API Keys in `.env`:**
+```bash
+# Enable authentication
+REQUIRE_AUTH=true
+
+# Add your API keys (comma-separated)
+API_KEYS=your-secure-api-key-1,your-secure-api-key-2
+
+# Generate secure keys using provided script:
+python3 scripts/generate_api_keys.py -n 2 --env
+
+# Or manually with openssl:
+# openssl rand -hex 32
+```
+
+2. **Use API Key in Requests:**
+
+**Option A: Authorization Header (Recommended)**
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "Authorization: Bearer your-secure-api-key-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+**Option B: X-API-Key Header**
+```bash
+curl -X POST http://localhost:8000/v1/chat/completions \
+  -H "x-api-key: your-secure-api-key-1" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "claude-3-5-sonnet-20241022",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+3. **Rate Limiting:**
+- Default: 100 requests per minute per API key
+- Configurable via `RATE_LIMIT_REQUESTS_PER_MINUTE` in `.env`
 
 ### Chat Completions
 

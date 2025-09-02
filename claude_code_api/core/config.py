@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     
     # Authentication
     api_keys: List[str] = Field(default_factory=list)
-    require_auth: bool = False
+    require_auth: bool = False  # Default to False for backward compatibility, set True in production
     
     @field_validator('api_keys', mode='before')
     def parse_api_keys(cls, v):
