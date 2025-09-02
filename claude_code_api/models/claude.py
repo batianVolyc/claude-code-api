@@ -8,9 +8,11 @@ from enum import Enum
 
 class ClaudeModel(str, Enum):
     """Available Claude models - matching Claude Code CLI supported models."""
+    OPUS_41 = "claude-opus-4-1-20250805"  # Latest Opus 4.1
     OPUS_4 = "claude-opus-4-20250514"
     SONNET_4 = "claude-sonnet-4-20250514"
     SONNET_37 = "claude-3-7-sonnet-20250219"
+    SONNET_35 = "claude-3-5-sonnet-20241022"  # Latest Sonnet 3.5
     HAIKU_35 = "claude-3-5-haiku-20241022"
 
 
@@ -125,7 +127,7 @@ class ClaudeProjectConfig(BaseModel):
     project_id: str = Field(..., description="Project ID")
     name: str = Field(..., description="Project name")
     path: str = Field(..., description="Project path")
-    default_model: str = Field(ClaudeModel.HAIKU_35, description="Default model")
+    default_model: str = Field(ClaudeModel.SONNET_35, description="Default model")
     system_prompt: Optional[str] = Field(None, description="Default system prompt")
     tools_enabled: List[ClaudeToolType] = Field(default_factory=list, description="Enabled tools")
     max_tokens: Optional[int] = Field(None, description="Maximum tokens per request")
@@ -203,22 +205,32 @@ def validate_claude_model(model: str) -> str:
     if model in valid_models:
         return model
     
-    # Default to Haiku for testing
-    return ClaudeModel.HAIKU_35
+    # Default to Sonnet 3.5 for better performance
+    return ClaudeModel.SONNET_35
 
 
 def get_default_model() -> str:
     """Get the default Claude model."""
-    return ClaudeModel.HAIKU_35
+    return ClaudeModel.SONNET_35  # Updated to use newer Sonnet 3.5 as default
 
 
 def get_model_info(model_id: str) -> ClaudeModelInfo:
     """Get information about a Claude model."""
     model_info = {
+        ClaudeModel.OPUS_41: ClaudeModelInfo(
+            id=ClaudeModel.OPUS_41,
+            name="Claude Opus 4.1",
+            description="Latest and most powerful Claude model for complex reasoning",
+            max_tokens=500000,
+            input_cost_per_1k=15.0,
+            output_cost_per_1k=75.0,
+            supports_streaming=True,
+            supports_tools=True
+        ),
         ClaudeModel.OPUS_4: ClaudeModelInfo(
             id=ClaudeModel.OPUS_4,
             name="Claude Opus 4",
-            description="Most powerful Claude model for complex reasoning",
+            description="Powerful Claude model for complex reasoning",
             max_tokens=500000,
             input_cost_per_1k=15.0,
             output_cost_per_1k=75.0,
@@ -245,6 +257,16 @@ def get_model_info(model_id: str) -> ClaudeModelInfo:
             supports_streaming=True,
             supports_tools=True
         ),
+        ClaudeModel.SONNET_35: ClaudeModelInfo(
+            id=ClaudeModel.SONNET_35,
+            name="Claude Sonnet 3.5",
+            description="Latest Sonnet model with improved performance",
+            max_tokens=200000,
+            input_cost_per_1k=3.0,
+            output_cost_per_1k=15.0,
+            supports_streaming=True,
+            supports_tools=True
+        ),
         ClaudeModel.HAIKU_35: ClaudeModelInfo(
             id=ClaudeModel.HAIKU_35,
             name="Claude Haiku 3.5",
@@ -257,7 +279,7 @@ def get_model_info(model_id: str) -> ClaudeModelInfo:
         )
     }
     
-    return model_info.get(model_id, model_info[ClaudeModel.HAIKU_35])
+    return model_info.get(model_id, model_info[ClaudeModel.SONNET_35])
 
 
 def get_available_models() -> List[ClaudeModelInfo]:
