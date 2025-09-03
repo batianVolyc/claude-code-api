@@ -132,13 +132,32 @@ make stop
 
 ## Makefile Commands
 
+### 🔧 使用方式
+
+1. **开发环境**：`make start` （自动重载，适合开发）
+2. **生产前台**：`make start-prod` （稳定，但SSH断开会停止）  
+3. **生产后台**：`make start-prod-bg` （最稳定，SSH断开仍运行）
+
 ### Core Commands
 ```bash
-make install     # Install production dependencies
-make install-dev # Install development dependencies  
-make test        # Run all tests
-make start       # Start API server (production)
-make start-dev   # Start API server (development with reload)
+# Development
+make install        # Install dependencies
+make start          # Start server (development with auto-reload)
+
+# Production
+make start-prod     # Start server (production, foreground)
+make start-prod-bg  # Start server (production, background)
+
+# Process Management
+make stop           # Stop background server
+make restart        # Restart background server  
+make status         # Show status and recent logs
+make logs           # Follow logs in real-time
+
+# Testing & Cleanup
+make test           # Run tests
+make clean          # Clean cache files
+make kill PORT=X    # Kill process on specific port
 ```
 
 ### Testing
