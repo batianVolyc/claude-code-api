@@ -71,6 +71,29 @@ logs:
 		echo "Log file not found. Make sure to start the server with 'make start-prod-bg'"; \
 	fi
 
+# Maintenance commands
+logs-rotate:
+	@echo "Rotating logs..."
+	@python3 -c "from claude_code_api.core.maintenance import log_manager; log_manager.rotate_logs()"
+	@echo "Log rotation completed"
+
+logs-clean:
+	@echo "Cleaning old log files..."
+	@python3 -c "from claude_code_api.core.maintenance import log_manager; count = log_manager.cleanup_old_logs(); print(f'Removed {count} old log files')"
+
+logs-stats:
+	@echo "Log file statistics:"
+	@python3 -c "from claude_code_api.core.maintenance import log_manager; import json; stats = log_manager.get_log_stats(); print(json.dumps(stats, indent=2))"
+
+health:
+	@echo "Checking API health..."
+	@curl -s http://localhost:8010/health | python3 -m json.tool || echo "API not responding"
+
+maintenance:
+	@echo "Running maintenance tasks..."
+	@python3 -c "import asyncio; from claude_code_api.core.maintenance import run_maintenance_tasks; asyncio.run(run_maintenance_tasks())"
+	@echo "Maintenance completed"
+
 clean:
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" -delete

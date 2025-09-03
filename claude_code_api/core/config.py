@@ -90,6 +90,12 @@ class Settings(BaseSettings):
     max_concurrent_sessions: int = 10
     session_timeout_minutes: int = 30
     
+    # Claude API Key Pool (JSON string)
+    claude_api_keys: str = ""
+    claude_auto_rotate: bool = True
+    claude_restart_on_rotate: bool = True
+    claude_current_key_index: int = 0
+    
     # Project Configuration
     project_root: str = "/tmp/claude_projects"
     max_project_size_mb: int = 1000

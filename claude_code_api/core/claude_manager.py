@@ -1,4 +1,4 @@
-"""Claude Code process management."""
+"""Claude Code process management with API key rotation."""
 
 import asyncio
 import json
@@ -11,6 +11,7 @@ from typing import Optional, Dict, List, AsyncGenerator, Any
 import structlog
 
 from .config import settings
+from .key_manager import ClaudeKeyManager, detect_claude_error, create_key_manager_from_config
 
 logger = structlog.get_logger()
 
@@ -25,9 +26,54 @@ class ClaudeProcess:
         self.is_running = False
         self.output_queue = asyncio.Queue()
         self.error_queue = asyncio.Queue()
+        self.key_manager: Optional[ClaudeKeyManager] = None
+        self.retry_count = 0
+        self.max_retries = 3
         
     async def start(
         self, 
+        prompt: str, 
+        model: str = None,
+        system_prompt: str = None,
+        resume_session: str = None
+    ) -> bool:
+        """Start Claude Code process with API key rotation support."""
+        
+        # Initialize key manager if not already done
+        if not self.key_manager:
+            self.key_manager = create_key_manager_from_config()
+        
+        # Try with current key, retry with rotation on failure
+        while self.retry_count < self.max_retries:
+            try:
+                # Apply current API key to environment
+                if self.key_manager and not self.key_manager.apply_current_key():
+                    logger.error("No available API keys")
+                    return False
+                
+                success = await self._execute_claude_command(prompt, model, system_prompt, resume_session)
+                
+                if success:
+                    return True
+                else:
+                    # Check if we should retry with key rotation
+                    if await self._handle_failure():
+                        continue
+                    else:
+                        return False
+                        
+            except Exception as e:
+                logger.error("Error in Claude process start", error=str(e))
+                if await self._handle_failure():
+                    continue
+                else:
+                    return False
+        
+        logger.error("Max retries reached, giving up", session_id=self.session_id)
+        return False
+    
+    async def _execute_claude_command(
+        self,
         prompt: str, 
         model: str = None,
         system_prompt: str = None,
@@ -60,7 +106,8 @@ class ClaudeProcess:
                 "Starting Claude process",
                 session_id=self.session_id,
                 project_path=self.project_path,
-                model=model or settings.default_model
+                model=model or settings.default_model,
+                retry_count=self.retry_count
             )
             
             # Start process from src directory (where Claude works without API key)
@@ -89,6 +136,20 @@ class ClaudeProcess:
                 stdout_preview=stdout.decode()[:200] if stdout else "empty"
             )
             
+            # Check for API key related errors in stderr
+            if stderr and self.key_manager:
+                error_type = detect_claude_error(stderr.decode())
+                if error_type:
+                    logger.warning(
+                        "Detected Claude API error",
+                        error_type=error_type,
+                        session_id=self.session_id
+                    )
+                    # Mark current key as failed for quota/auth errors
+                    if error_type in ["insufficient_quota", "auth_error", "rate_limit"]:
+                        self.key_manager.mark_key_failed(error_type)
+                        return False
+            
             if self.process.returncode == 0:
                 # Parse the output lines and put them in the queue
                 output_lines = stdout.decode().strip().split('\n')
@@ -112,6 +173,7 @@ class ClaudeProcess:
                 # Signal end of output
                 await self.output_queue.put(None)
                 self.is_running = False
+                self.retry_count = 0  # Reset retry count on success
                 return True
             else:
                 # Handle error
@@ -123,10 +185,30 @@ class ClaudeProcess:
             
         except Exception as e:
             logger.error(
-                "Failed to start Claude process",
+                "Failed to execute Claude command",
                 session_id=self.session_id,
                 error=str(e)
             )
+            return False
+    
+    async def _handle_failure(self) -> bool:
+        """Handle command failure and decide if we should retry with key rotation."""
+        self.retry_count += 1
+        
+        if not self.key_manager or not settings.claude_auto_rotate:
+            return False
+            
+        # Try to rotate to next key
+        if self.key_manager.rotate_key():
+            logger.info(
+                "Retrying with rotated API key",
+                session_id=self.session_id,
+                retry_count=self.retry_count,
+                max_retries=self.max_retries
+            )
+            return True
+        else:
+            logger.error("No more keys available for rotation")
             return False
     
     

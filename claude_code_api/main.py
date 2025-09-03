@@ -23,6 +23,7 @@ from claude_code_api.api.chat import router as chat_router
 from claude_code_api.api.models import router as models_router
 from claude_code_api.api.projects import router as projects_router
 from claude_code_api.api.sessions import router as sessions_router
+from claude_code_api.api.keys import router as keys_router
 from claude_code_api.core.auth import auth_middleware
 
 
@@ -62,6 +63,14 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     app.state.claude_manager = ClaudeManager()
     logger.info("Managers initialized")
     
+    # Setup maintenance scheduling
+    try:
+        from claude_code_api.core.scheduler import setup_maintenance_schedule
+        await setup_maintenance_schedule()
+        logger.info("Maintenance scheduler started")
+    except Exception as e:
+        logger.warning("Failed to start maintenance scheduler", error=str(e))
+    
     # Verify Claude Code availability
     try:
         claude_version = await app.state.claude_manager.get_version()
@@ -77,6 +86,16 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     
     # Cleanup
     logger.info("Shutting down Claude Code API Gateway")
+    
+    try:
+        # Stop scheduler
+        from claude_code_api.core.scheduler import scheduler
+        await scheduler.stop()
+        logger.info("Scheduler stopped")
+    except Exception as e:
+        logger.warning("Error stopping scheduler", error=str(e))
+    
+    # Cleanup sessions and database
     await app.state.session_manager.cleanup_all()
     await close_database()
     logger.info("Shutdown complete")
@@ -173,6 +192,7 @@ app.include_router(chat_router, prefix="/v1", tags=["chat"])
 app.include_router(models_router, prefix="/v1", tags=["models"])
 app.include_router(projects_router, prefix="/v1", tags=["projects"])
 app.include_router(sessions_router, prefix="/v1", tags=["sessions"])
+app.include_router(keys_router, prefix="/v1", tags=["keys"])
 
 
 if __name__ == "__main__":
