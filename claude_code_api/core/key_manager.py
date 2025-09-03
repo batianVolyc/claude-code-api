@@ -171,7 +171,7 @@ class ClaudeKeyManager:
                 {
                     "index": i,
                     "name": key.get('name', f'key_{i}'),
-                    "status": "failed" if i in self.failed_keys else "active",
+                    "status": key.get('status', 'active') if i not in self.failed_keys else "failed",
                     "current": i == self.current_index
                 }
                 for i, key in enumerate(self.keys)

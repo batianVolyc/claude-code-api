@@ -45,7 +45,7 @@ class LogManager:
             shutil.move(str(self.log_file), str(archived_log))
             
             # Compress archived log to save space
-            await self._compress_log(archived_log)
+            self._compress_log_sync(archived_log)
             
             logger.info(
                 "Log rotated successfully",
@@ -59,8 +59,8 @@ class LogManager:
             logger.error("Failed to rotate logs", error=str(e))
             return False
     
-    async def _compress_log(self, log_path: Path) -> bool:
-        """Compress log file using gzip."""
+    def _compress_log_sync(self, log_path: Path) -> bool:
+        """Compress log file using gzip (synchronous version)."""
         try:
             import gzip
             
