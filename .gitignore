@@ -200,6 +200,10 @@ test.db
 *.log
 logs/
 
+# Process management files
+*.pid
+claude_api.pid
+
 # Temporary files
 tmp/
 temp/

@@ -83,14 +83,52 @@ make install
 # Run tests to verify setup
 make test
 
-# Start the API server
-make start-dev
+# Start the API server (development with auto-reload)
+make start
+
+# Start the API server (production, foreground)
+make start-prod
+
+# Start the API server (production, background - survives SSH disconnect)
+make start-prod-bg
+
+# Stop background server
+make stop
+
+# Restart background server  
+make restart
+
+# Check server status and recent logs
+make status
+
+# Follow server logs in real-time
+make logs
 ```
 
 The API will be available at:
-- **API**: http://localhost:8000
-- **Docs**: http://localhost:8000/docs  
-- **Health**: http://localhost:8000/health
+- **API**: http://localhost:8010
+- **Docs**: http://localhost:8010/docs  
+- **Health**: http://localhost:8010/health
+
+## Production Deployment
+
+For production use, especially on remote servers:
+
+```bash
+# Start in background (survives SSH disconnect)
+make start-prod-bg
+
+# Check status
+make status
+
+# View logs
+make logs
+
+# Restart if needed
+make restart
+
+# Stop when needed
+make stop
 
 ## Makefile Commands
 
