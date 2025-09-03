@@ -2,9 +2,9 @@
 
 import os
 import shutil
-from typing import List, Union
-from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings
+from typing import List, Union, Optional, Any
+from pydantic import Field, field_validator, ValidationInfo
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 def find_claude_binary() -> str:
@@ -65,14 +65,23 @@ class Settings(BaseSettings):
     debug: bool = False
     
     # Authentication
-    api_keys: List[str] = Field(default_factory=list)
-    require_auth: bool = False  # Default to False for backward compatibility, set True in production
+    api_keys: Union[str, List[str]] = Field(default_factory=list)
+    require_auth: bool = Field(default=False)
     
     @field_validator('api_keys', mode='before')
+    @classmethod
     def parse_api_keys(cls, v):
+        if v is None:
+            return []
         if isinstance(v, str):
+            # Handle empty string
+            if not v.strip():
+                return []
+            # Handle comma-separated values
             return [x.strip() for x in v.split(',') if x.strip()]
-        return v or []
+        if isinstance(v, list):
+            return v
+        return []
     
     # Claude Configuration  
     claude_binary_path: str = find_claude_binary()
@@ -94,15 +103,22 @@ class Settings(BaseSettings):
     log_format: str = "json"
     
     # CORS Configuration
-    allowed_origins: List[str] = Field(default=["*"])
-    allowed_methods: List[str] = Field(default=["*"])
-    allowed_headers: List[str] = Field(default=["*"])
+    allowed_origins: Union[str, List[str]] = Field(default=["*"])
+    allowed_methods: Union[str, List[str]] = Field(default=["*"])
+    allowed_headers: Union[str, List[str]] = Field(default=["*"])
     
     @field_validator('allowed_origins', 'allowed_methods', 'allowed_headers', mode='before')
+    @classmethod
     def parse_cors_lists(cls, v):
+        if v is None:
+            return ["*"]
         if isinstance(v, str):
+            if not v.strip():
+                return ["*"]
             return [x.strip() for x in v.split(',') if x.strip()]
-        return v or ["*"]
+        if isinstance(v, list):
+            return v
+        return ["*"]
     
     # Rate Limiting
     rate_limit_requests_per_minute: int = 100
@@ -112,10 +128,10 @@ class Settings(BaseSettings):
     streaming_chunk_size: int = 1024
     streaming_timeout_seconds: int = 300
     
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = SettingsConfigDict(
+        env_file='.env',
+        env_file_encoding='utf-8'
+    )
 
 
 # Create global settings instance

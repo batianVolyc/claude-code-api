@@ -6,16 +6,16 @@ install:
 	pip install requests
 
 test:
-	python -m pytest tests/ -v
+	python3 -m pytest tests/ -v
 
 test-real:
-	python tests/test_real_api.py
+	python3 tests/test_real_api.py
 
 start:
-	uvicorn claude_code_api.main:app --host 0.0.0.0 --port 8000 --reload --reload-exclude="*.db*" --reload-exclude="*.log"
+	uvicorn claude_code_api.main:app --host 127.0.0.1 --port 8010 --reload --reload-exclude="*.db*" --reload-exclude="*.log"
 
 start-prod:
-	uvicorn claude_code_api.main:app --host 0.0.0.0 --port 8000
+	uvicorn claude_code_api.main:app --host 127.0.0.1 --port 8010
 
 clean:
 	find . -name "*.pyc" -delete

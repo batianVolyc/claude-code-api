@@ -48,9 +48,13 @@ class ClaudeProcess:
             # Always use stream-json output format (exact order from working example)
             cmd.extend([
                 "--output-format", "stream-json",
-                "--verbose", 
-                "--dangerously-skip-permissions"
+                "--verbose"
             ])
+            
+            # Only add --dangerously-skip-permissions if not running as root
+            import getpass
+            if getpass.getuser() != 'root':
+                cmd.append("--dangerously-skip-permissions")
             
             logger.info(
                 "Starting Claude process",
