@@ -112,25 +112,62 @@ async def create_chat_completion(
                 }
             )
         
-        # Extract the user prompt (last user message)
-        user_messages = [msg for msg in request.messages if msg.role == "user"]
-        if not user_messages:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail={
-                    "error": {
-                        "message": "At least one user message is required",
-                        "type": "invalid_request_error", 
-                        "code": "missing_user_message"
-                    }
-                }
-            )
-        
-        user_prompt = user_messages[-1].get_text_content()
-        
-        # Extract system prompt
+        # Extract system prompt first
         system_messages = [msg for msg in request.messages if msg.role == "system"]
         system_prompt = system_messages[0].get_text_content() if system_messages else request.system_prompt
+        
+        # Build conversation context for Claude Code CLI
+        conversation_history = []
+        current_user_prompt = None
+        
+        for msg in request.messages:
+            if msg.role == "system":
+                continue  # System messages are handled separately
+            elif msg.role == "user":
+                current_user_prompt = msg.get_text_content()
+                # Add previous conversation context if it exists
+                if conversation_history:
+                    conversation_history.append(f"User: {current_user_prompt}")
+                # Keep the last user message as the main prompt
+            elif msg.role == "assistant":
+                if current_user_prompt:
+                    # Add the previous user-assistant pair to history
+                    conversation_history.append(f"User: {current_user_prompt}")
+                    conversation_history.append(f"Assistant: {msg.get_text_content()}")
+                    current_user_prompt = None
+        
+        # Ensure we have a current user prompt
+        if not current_user_prompt:
+            user_messages = [msg for msg in request.messages if msg.role == "user"]
+            if not user_messages:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "error": {
+                            "message": "At least one user message is required",
+                            "type": "invalid_request_error", 
+                            "code": "missing_user_message"
+                        }
+                    }
+                )
+            current_user_prompt = user_messages[-1].get_text_content()
+        
+        # Build the complete prompt with context
+        if conversation_history:
+            context_prompt = "Previous conversation:\n" + "\n".join(conversation_history) + "\n\nCurrent request:\n" + current_user_prompt
+        else:
+            context_prompt = current_user_prompt
+        
+        user_prompt = context_prompt
+        
+        # Debug: Log what we're sending to Claude
+        logger.info(
+            "Context and prompt prepared",
+            conversation_history_length=len(conversation_history),
+            has_context=bool(conversation_history),
+            system_prompt_length=len(system_prompt) if system_prompt else 0,
+            final_prompt_preview=user_prompt[:500] + "..." if len(user_prompt) > 500 else user_prompt
+        )
         
         # Handle project context
         project_id = request.project_id or f"default-{client_id}"

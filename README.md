@@ -44,9 +44,12 @@ make start
 
 ## Features
 
-- **Claude-Only Models**: Supports exactly the 4 Claude models that Claude Code CLI offers
+- **Claude-Only Models**: Supports exactly the 6 Claude models that Claude Code CLI offers
 - **OpenAI Compatible**: Drop-in replacement for OpenAI API endpoints
 - **Streaming Support**: Real-time streaming responses 
+- **Context Preservation**: Full conversation history support with system prompts
+- **Auto Key Rotation**: Automatic API key rotation when quota is exceeded
+- **Shell Config Updates**: Automatically updates shell configuration files (.bashrc, .bash_profile, .zshrc) when keys rotate
 - **Simple & Clean**: No over-engineering, focused implementation
 - **Claude Code Integration**: Leverages Claude Code CLI with streaming output
 
@@ -58,6 +61,65 @@ make start
 - `claude-3-7-sonnet-20250219` - Claude Sonnet 3.7
 - `claude-3-5-sonnet-20241022` - Claude Sonnet 3.5 (Latest Sonnet)
 - `claude-3-5-haiku-20241022` - Claude Haiku 3.5 (Fast & cost-effective)
+
+## Key Features
+
+### 🔄 Automatic API Key Rotation
+
+The system automatically handles API key failures and rotates to backup keys when:
+- Current key runs out of quota/credits
+- Authentication errors occur
+- Rate limits are exceeded
+
+**Configuration:**
+```json
+{
+  "claude_api_keys": [
+    {
+      "name": "primary",
+      "token": "sk-your-primary-key",
+      "base_url": "https://anyrouter.top",
+      "status": "active"
+    },
+    {
+      "name": "backup1", 
+      "token": "sk-your-backup-key",
+      "base_url": "https://anyrouter.top",
+      "status": "active"
+    }
+  ]
+}
+```
+
+When a key fails:
+1. ✅ Automatically detects quota/auth errors
+2. ✅ Rotates to next available key  
+3. ✅ Updates environment variables (`ANTHROPIC_AUTH_TOKEN`)
+4. ✅ Updates shell config files (.bashrc, .bash_profile, .zshrc)
+5. ✅ Continues serving requests without interruption
+
+### 💬 Full Context Preservation
+
+Unlike basic implementations, this gateway preserves complete conversation context:
+- ✅ System prompts are properly handled
+- ✅ Full conversation history is maintained
+- ✅ Assistant responses are remembered across turns
+- ✅ OpenAI-compatible message format support
+
+**Example with context:**
+```json
+{
+  "model": "claude-3-5-sonnet-20241022",
+  "messages": [
+    {"role": "system", "content": "You are a helpful assistant."},
+    {"role": "user", "content": "My name is Alice."},
+    {"role": "assistant", "content": "Nice to meet you, Alice!"},
+    {"role": "user", "content": "What's my name?"}
+  ]
+}
+```
+
+Response: "Your name is Alice." ✅ (Context preserved)
 
 ## Quick Start
 

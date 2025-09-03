@@ -91,16 +91,14 @@ class ClaudeProcess:
             if model:
                 cmd.extend(["--model", model])
             
-            # Always use stream-json output format (exact order from working example)
+            # Always use stream-json output format
             cmd.extend([
                 "--output-format", "stream-json",
                 "--verbose"
             ])
             
-            # Only add --dangerously-skip-permissions if not running as root
-            import getpass
-            if getpass.getuser() != 'root':
-                cmd.append("--dangerously-skip-permissions")
+            # Skip --dangerously-skip-permissions when running as root
+            # Root already has necessary permissions, and Claude CLI blocks this flag for security
             
             logger.info(
                 "Starting Claude process",
@@ -110,15 +108,15 @@ class ClaudeProcess:
                 retry_count=self.retry_count
             )
             
-            # Start process from src directory (where Claude works without API key)
-            src_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-            logger.info(f"Starting Claude from directory: {src_dir}")
+            # Start process from isolated project directory to avoid conflicts with server files
+            # Each API call gets its own empty directory, keeping tools functional but isolated
+            logger.info(f"Starting Claude from isolated directory: {self.project_path}")
             logger.info(f"Command: {' '.join(cmd)}")
             
             # Claude CLI runs to completion, so we run it and capture all output
             self.process = await asyncio.create_subprocess_exec(
                 *cmd,
-                cwd=src_dir,
+                cwd=self.project_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )

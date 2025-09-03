@@ -75,9 +75,19 @@ class ClaudeKeyManager:
         # Rotate to next key
         success = self.rotate_key()
         
+        # Apply the new key to environment and config files
+        if success:
+            self.apply_current_key()
+        
         # Trigger process restart if configured
         if success and self._should_restart_on_rotate():
-            asyncio.create_task(self._restart_process())
+            try:
+                # Check if there's a running event loop
+                loop = asyncio.get_running_loop()
+                asyncio.create_task(self._restart_process())
+            except RuntimeError:
+                # No event loop running, skip restart (this is normal in testing)
+                logger.info("No event loop running, skipping process restart")
         
         return success
     
@@ -132,7 +142,7 @@ class ClaudeKeyManager:
             return False
     
     def apply_current_key(self) -> bool:
-        """Apply the current key to environment variables."""
+        """Apply the current key to environment variables and update shell config files."""
         key = self.get_current_key()
         if not key:
             logger.error("No available API key to apply")
@@ -144,8 +154,11 @@ class ClaudeKeyManager:
             if 'base_url' in key:
                 os.environ['ANTHROPIC_BASE_URL'] = key['base_url']
             
+            # Update shell configuration files
+            self._update_shell_config_files(key['token'])
+            
             logger.info(
-                "Applied API key to environment",
+                "Applied API key to environment and config files",
                 key_name=key.get('name', 'unnamed'),
                 key_index=self.current_index,
                 base_url=key.get('base_url', 'default')
@@ -155,6 +168,44 @@ class ClaudeKeyManager:
         except Exception as e:
             logger.error("Failed to apply API key", error=str(e))
             return False
+    
+    def _update_shell_config_files(self, new_token: str):
+        """Update ANTHROPIC_AUTH_TOKEN in shell configuration files."""
+        import os.path
+        import subprocess
+        
+        # List of shell configuration files to update
+        config_files = [
+            os.path.expanduser("~/.bash_profile"),
+            os.path.expanduser("~/.bashrc"),
+            os.path.expanduser("~/.zshrc")
+        ]
+        
+        for config_file in config_files:
+            try:
+                if os.path.exists(config_file):
+                    # Check if ANTHROPIC_AUTH_TOKEN exists in the file
+                    with open(config_file, 'r') as f:
+                        content = f.read()
+                    
+                    if 'ANTHROPIC_AUTH_TOKEN' in content:
+                        # Use sed to replace the existing token
+                        subprocess.run([
+                            'sed', '-i', 
+                            f's/export ANTHROPIC_AUTH_TOKEN=.*/export ANTHROPIC_AUTH_TOKEN={new_token}/',
+                            config_file
+                        ], check=True)
+                        logger.info(f"Updated ANTHROPIC_AUTH_TOKEN in {config_file}")
+                    else:
+                        # Add the token if it doesn't exist
+                        with open(config_file, 'a') as f:
+                            f.write(f'\nexport ANTHROPIC_AUTH_TOKEN={new_token}\n')
+                        logger.info(f"Added ANTHROPIC_AUTH_TOKEN to {config_file}")
+                        
+            except Exception as e:
+                logger.warning(f"Failed to update {config_file}", error=str(e))
+        
+        logger.info("Shell configuration files updated with new API key")
     
     def get_status(self) -> Dict[str, Any]:
         """Get current key manager status."""
@@ -201,13 +252,30 @@ def detect_claude_error(stderr_output: str) -> Optional[str]:
     return None
 
 
+# Global key manager instance to maintain state across requests
+_global_key_manager: Optional[ClaudeKeyManager] = None
+
+
 def create_key_manager_from_config() -> Optional[ClaudeKeyManager]:
-    """Create key manager from environment configuration."""
+    """Get or create key manager from environment configuration (singleton pattern)."""
+    global _global_key_manager
+    
+    if _global_key_manager is not None:
+        return _global_key_manager
+    
     from .config import settings
     
     keys_config = getattr(settings, 'claude_api_keys', '')
     if not keys_config:
         logger.warning("No Claude API keys configuration found in settings")
         return None
-        
-    return ClaudeKeyManager(keys_config)
+    
+    _global_key_manager = ClaudeKeyManager(keys_config)
+    logger.info("Created global key manager instance")
+    return _global_key_manager
+
+
+def reset_key_manager():
+    """Reset global key manager (for testing purposes)."""
+    global _global_key_manager
+    _global_key_manager = None
